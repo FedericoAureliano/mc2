@@ -498,9 +498,8 @@ module Make(ARG : sig
       [Stmt.Stmt_decl (id, args,ret)]
     | PA.Stmt_data _l ->
       errorf_ctx "cannot handle datatype in %a" PA.pp_stmt stmt
-      (* FIXME
-      [Stmt.Stmt_data l]
-         *)
+      (* TODO Federico: store data type information for processing later *)
+      (* TODO Federico: follow case above for PA.Stmt_decl to add declarations for our blasting *)
     | PA.Stmt_funs_rec _defs ->
       errorf_ctx "not implemented: definitions in %a" PA.pp_stmt stmt
         (* TODO
@@ -526,6 +525,8 @@ module Make(ARG : sig
     | PA.Stmt_fun_rec _ ->
       errorf_ctx "unsupported definition: %a" PA.pp_stmt stmt
     | PA.Stmt_assert t ->
+      (* TODO Federico: Rewrite term t using stored datatype declarations *)
+      (* TODO Federico: Add side assertions for blasting *)
       Log.debugf 50 (fun k->k ">>> conv assert %a" PA.pp_term t);
       let cs = conv_bool_term t in
       Log.debugf 60 (fun k->k ">>> assert clauses %a" Fmt.(Dump.(list @@ list @@ Atom.pp)) cs);
