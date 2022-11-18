@@ -13,6 +13,10 @@ module F = Mc2_propositional.F
 module RLE = Mc2_lra.LE
 module Stmt = Mc2_core.Statement
 
+(* Amar: adding a "state" that will keep track of the number of variables  *)
+type state =  { mutable number_variables : int};
+(*end:Amar section  *)
+
 type 'a or_error = ('a, string) CCResult.t
 
 let pp_loc_opt = Loc.pp_opt
@@ -465,6 +469,17 @@ module Make(ARG : sig
     let ret = conv_ty f.PA.fun_ret in
     f.PA.fun_name, args, ret
 
+  (* Amar: trying to create a version of conv_fun_decl for datatypes *)
+  let conv_fun_data (f: ((string * level) * PA.Cstor list) list) : string * Ty.t list * Ty.t =
+    if f.PA.fun_ty_vars <> [] then (
+      errorf_ctx "cannot convert polymorphic function@ %a"
+        (PA.pp_fun_decl PA.pp_ty) f
+    );
+    let args = List.map conv_ty f.PA.fun_args in
+    let ret = conv_ty f.PA.fun_ret in
+    f.PA.fun_name, args, ret
+    (* end Amar section *)
+
   let conv_term t = conv_term_ Subst.empty t
 
   let rec conv_statement (s:PA.statement): Stmt.t list =
@@ -496,10 +511,18 @@ module Make(ARG : sig
       decl id args ret;
       Ctx.add_term_fun_ f id;
       [Stmt.Stmt_decl (id, args,ret)]
-    | PA.Stmt_data _l ->
-      errorf_ctx "cannot handle datatype in %a" PA.pp_stmt stmt
+    | PA.Stmt_data _l -> 
+      (* errorf_ctx "cannot handle datatype in %a" PA.pp_stmt stmt *)
       (* TODO Federico: store data type information for processing later *)
       (* TODO Federico: follow case above for PA.Stmt_decl to add declarations for our blasting *)
+      (* Everything between this and the next comment was written by Amar*)
+      let f, args, ret = conv_fun_data _l in
+      let id = ID.make f in
+      decl id args ret;
+      Ctx.add_term_fun_ f id;
+      state.number_variables<-(state.number_variables+1); (*want to increment the number of variables by 1*)
+      [Stmt.Stmt_decl (id, args,ret)]
+      (* end of Amar section *)
     | PA.Stmt_funs_rec _defs ->
       errorf_ctx "not implemented: definitions in %a" PA.pp_stmt stmt
         (* TODO
@@ -527,6 +550,10 @@ module Make(ARG : sig
     | PA.Stmt_assert t ->
       (* TODO Federico: Rewrite term t using stored datatype declarations *)
       (* TODO Federico: Add side assertions for blasting *)
+      (* Everything between this and the next comment was written by Amar*)
+
+      (* I kinda think we shouldn't add assertions here, we should just do it when we declare a new datatype*)
+      (* end of Amar section*)
       Log.debugf 50 (fun k->k ">>> conv assert %a" PA.pp_term t);
       let cs = conv_bool_term t in
       Log.debugf 60 (fun k->k ">>> assert clauses %a" Fmt.(Dump.(list @@ list @@ Atom.pp)) cs);
