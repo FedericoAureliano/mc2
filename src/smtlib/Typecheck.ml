@@ -14,7 +14,7 @@ module RLE = Mc2_lra.LE
 module Stmt = Mc2_core.Statement
 
 (* Amar: adding a "state" that will keep track of the number of variables  *)
-type state =  { mutable number_variables : int};
+type state =  { mutable number_terms : int};
 (*end:Amar section  *)
 
 type 'a or_error = ('a, string) CCResult.t
@@ -520,7 +520,7 @@ module Make(ARG : sig
       let id = ID.make f in
       decl id args ret;
       Ctx.add_term_fun_ f id;
-      state.number_variables<-(state.number_variables+1); (*want to increment the number of variables by 1*)
+      state.number_terms<-(state.number_terms+1); (*want to increment the number of variables by 1*)
       [Stmt.Stmt_decl (id, args,ret)]
       (* end of Amar section *)
     | PA.Stmt_funs_rec _defs ->
