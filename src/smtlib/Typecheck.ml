@@ -14,7 +14,7 @@ module RLE = Mc2_lra.LE
 module Stmt = Mc2_core.Statement
 
 (* Amar: adding a "state" that will keep track of the number of variables  *)
-type state =  { mutable number_terms : int};
+(* type state =  { mutable number_terms : int}; *)
 (*end:Amar section  *)
 
 type 'a or_error = ('a, string) CCResult.t
@@ -470,14 +470,14 @@ module Make(ARG : sig
     f.PA.fun_name, args, ret
 
   (* Amar: trying to create a version of conv_fun_decl for datatypes *)
-  let conv_fun_data (f: ((string * level) * PA.Cstor list) list) : string * Ty.t list * Ty.t =
+  (* let conv_fun_data f: ((string * level) * PA.Cstor list) list =
     if f.PA.fun_ty_vars <> [] then (
       errorf_ctx "cannot convert polymorphic function@ %a"
         (PA.pp_fun_decl PA.pp_ty) f
     );
     let args = List.map conv_ty f.PA.fun_args in
     let ret = conv_ty f.PA.fun_ret in
-    f.PA.fun_name, args, ret
+    f.PA.fun_name, args, ret *)
     (* end Amar section *)
 
   let conv_term t = conv_term_ Subst.empty t
@@ -516,12 +516,36 @@ module Make(ARG : sig
       (* TODO Federico: store data type information for processing later *)
       (* TODO Federico: follow case above for PA.Stmt_decl to add declarations for our blasting *)
       (* Everything between this and the next comment was written by Amar*)
-      let f, args, ret = conv_fun_data _l in
-      let id = ID.make f in
-      decl id args ret;
-      Ctx.add_term_fun_ f id;
-      state.number_terms<-(state.number_terms+1); (*want to increment the number of variables by 1*)
-      [Stmt.Stmt_decl (id, args,ret)]
+      let rec get_constructors (lst: PA.cstor list) =
+        begin match lst with
+          |[] -> []
+          |head::body ->
+            print_string head.cstor_name;
+            print_string "howdy";
+            get_constructors body (* this bug may just come from how I need to write Stmt_data in Statement.ml*)
+          |_ -> errorf_ctx "incorrect datatype input"
+      end
+          in
+      let rec analyze_ADT (lst : ((string * level) * PA.cstor list) list) =
+        begin match lst with
+          |[] -> []
+          |((s, level), constructor_list)::body ->
+                if level > 0 then (
+                  errorf_ctx "cannot handle polymorphic type %s" s
+                );
+                let id = ID.make s in
+                (* declare sort, and save it *)
+                SReg.find_exn reg Mc2_unin_sort.k_decl_sort id level;
+                let ty = SReg.find_exn reg Mc2_unin_sort.k_make id [] in
+                Ctx.add_ty_ s id ty;
+                let constrs = get_constructors constructor_list in
+                []
+                (* Stmt.Stmt_data (id, n, constrs) :: analyze_ADT body *)
+          |_ -> errorf_ctx "incorrect datatype input"
+      end
+              in
+              (* state.number_terms<-(state.number_terms+1); (*want to increment the number of variables by 1 *)*)
+              analyze_ADT _l
       (* end of Amar section *)
     | PA.Stmt_funs_rec _defs ->
       errorf_ctx "not implemented: definitions in %a" PA.pp_stmt stmt
@@ -550,9 +574,12 @@ module Make(ARG : sig
     | PA.Stmt_assert t ->
       (* TODO Federico: Rewrite term t using stored datatype declarations *)
       (* TODO Federico: Add side assertions for blasting *)
-      (* Everything between this and the next comment was written by Amar*)
 
-      (* I kinda think we shouldn't add assertions here, we should just do it when we declare a new datatype*)
+      (*Amar: We need somthing slightly different here, we don't have to add the side assertions here.
+              Instead, we will keep track of the "depth" and add the side assertions only when we need to check-sat *)
+
+      (* Everything between this and the next comment was written by Amar*)
+        
       (* end of Amar section*)
       Log.debugf 50 (fun k->k ">>> conv assert %a" PA.pp_term t);
       let cs = conv_bool_term t in
