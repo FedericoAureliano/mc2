@@ -45,6 +45,7 @@ let check_model state =
 
 (* Arguments parsing *)
 let int_arg r arg =
+  print_string "happens";
   let l = String.length arg in
   let multiplier m =
     let arg1 = String.sub arg 0 (l-1) in

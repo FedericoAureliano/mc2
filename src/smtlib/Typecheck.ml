@@ -226,6 +226,7 @@ module Make(ARG : sig
 
   (* convert term *)
   let rec conv_t_or_f_ (subst:term_or_form Subst.t) (t:PA.term) : term_or_form =
+    print_string "happens";
     (* polymorphic equality *)
     let mk_app = SReg.find_exn reg Mc2_uf.k_app in
     let mk_const = SReg.find_exn reg Mc2_uf.k_const in
