@@ -154,6 +154,8 @@ let main () =
         try
           E.fold_l
             (fun () st ->
+              (* TODO: print statement *)
+              (* Printf.printf (Statement.pp st); *)
                Process.process_stmt
                  ~smtcomp:!smtcomp
                  ~gc:!gc ~restarts:!restarts ~pp_cnf:!p_cnf ~switch

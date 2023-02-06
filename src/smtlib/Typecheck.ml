@@ -15,6 +15,9 @@ module Stmt = Mc2_core.Statement
 
 (* Amar: adding a "state" that will keep track of the number of variables  *)
 (* type state =  { mutable number_terms : int}; *)
+(* type adt = ((string * level) * (PA.cstor list)) list
+type state_type = {ADT_instances : (adt list)}
+let state : state_type = {ADT_instances = []} *)
 (*end:Amar section  *)
 
 type 'a or_error = ('a, string) CCResult.t
@@ -22,6 +25,22 @@ type 'a or_error = ('a, string) CCResult.t
 let pp_loc_opt = Loc.pp_opt
 
 module StrTbl = CCHashtbl.Make(CCString)
+(*module SS = Set.Make(PA.ty) (* will use set to keep track of variables*)*)
+
+
+(* want to keep track of the adt_variables in a hashtable indexed by type*)
+module TyTbl = Hashtbl.Make(struct
+  type t = PA.ty
+  let equal = (=)
+  let hash = Hashtbl.hash
+end)
+
+(* want to keep track of the adts in a hashtable indexed by their id*)
+module IntTbl = Hashtbl.Make(struct
+  type t = int
+  let equal = (=)
+  let hash = Hashtbl.hash
+end)
 
 module Make(ARG : sig
     val solver : Mc2_core.Solver.t
@@ -41,18 +60,28 @@ module Make(ARG : sig
   module Ctx = struct
     type t = {
       tys: (ID.t * Type.t) StrTbl.t;
+      adt_tys: (ID.t * Type.t) IntTbl.t; (* we did an int tbl here so we could index them by their id and not their name *)
       terms: ID.t StrTbl.t;
+      sel_terms: ID.t StrTbl.t;
       def_funs: (PA.typed_var list * PA.term) StrTbl.t; (* defined functions *)
       def_consts: term_or_form StrTbl.t; (* defined constants *)
+      def_adts: (PA.cstor list) StrTbl.t; (* defined adts *)
+      def_adt_vars: PA.ty StrTbl.t; (* defined all of the variables for ADTS: variable name, constructor: may want to include other information like selector tester, etc *)
       mutable loc: Loc.t option; (* current loc *)
+      mutable max_depth: int;
     }
 
     let t : t = {
       terms=StrTbl.create 64;
+      sel_terms=StrTbl.create 64;
       tys=StrTbl.create 64;
+      adt_tys=IntTbl.create 64;
       def_funs=StrTbl.create 64;
       def_consts=StrTbl.create 32;
+      def_adts = StrTbl.create 64;
+      def_adt_vars = StrTbl.create 64;
       loc=None;
+      max_depth = 0;
     }
 
     let loc t = t.loc
@@ -62,22 +91,51 @@ module Make(ARG : sig
       StrTbl.replace t.terms s id;
       ()
 
+      (*trying to create a version of add_term_fun_ for selectors.
+         TODO: figure out what needs to be different*)
+    let add_term_sel_ (s:string) (id:ID.t) : unit =
+      print_string (s ^ " added to context as selector \n");
+      StrTbl.replace t.sel_terms s id;
+      (* Printf.printf "Keys: %s\n" (String.concat " " (StrTbl.keys_list def_selectors )); *)
+      ()
+
     let add_ty_ (s:string) (id:ID.t) (ty:Ty.t) : unit =
       StrTbl.replace t.tys s (id,ty);
       ()
 
+    let add_adt_ty_ (n:int) (id:ID.t) (ty:Ty.t) : unit =
+      IntTbl.replace t.adt_tys n (id,ty);
+      ()
+
     let add_def_const s rhs : unit = StrTbl.add t.def_consts s rhs
     let add_def_fun s vars rhs : unit = StrTbl.add t.def_funs s (vars,rhs)
+    let add_def_adt name constructors : unit = StrTbl.add t.def_adts name constructors
+    let add_adt_vars name adt_type : unit = StrTbl.add t.def_adt_vars name adt_type (* adding a new adt variable to the context*)
+    let update_max_depth n : unit = 
+        print_string (" Old Max_depth: " ^ (string_of_int t.max_depth) ^ "\n");
+        t.max_depth <- max t.max_depth n;
+        print_string (" New Max_depth: " ^ (string_of_int t.max_depth) ^ "\n")
+
 
     let find_ty (s:string) : ty =
       match StrTbl.get t.tys s with
       | Some (_, ty) -> ty
       | _ -> Error.errorf "expected %s to be an atomic type" s
 
-    let find_term_fun (s:string) : ID.t =
+    let in_adt_ty (n:int) =
+      match IntTbl.find_opt t.adt_tys n with
+      | Some(_, ty) -> true
+      | None -> false
+
+    let find_term_fun (s:string) : ID.t option =
       match StrTbl.get t.terms s with
-      | Some f -> f
-      | _ -> Error.errorf "expected %s to be a function symbol" s
+      | Some f -> Some f
+      | _ -> None (*Error.errorf "expected %s to be a function symbol" s*)
+
+    let find_term_sel (s:string) : ID.t option =
+      match StrTbl.get t.sel_terms s with
+      | Some f -> Some f
+      | _ -> None
   end
 
   let error_loc () : string = Fmt.sprintf "at %a: " pp_loc_opt (Ctx.loc Ctx.t)
@@ -133,6 +191,15 @@ module Make(ARG : sig
   let mk_lra_id =
     let n = ref 0 in
     fun () -> ID.makef "lra_%d" (CCRef.incr_then_get n)
+
+  (* Helper function added by Amar *)
+  let rec print_list = function 
+    |[] -> ()
+    | e::l -> print_string e ; print_string " " ; print_list l
+
+  (* let rec print_stmts = function 
+    |[] -> ()
+    | e::l -> Stmt.pp e ; print_string " " ; (print_stmts l) *)
 
   let[@inline] ret_t t = T t
   let[@inline] ret_f f = F f
@@ -226,7 +293,6 @@ module Make(ARG : sig
 
   (* convert term *)
   let rec conv_t_or_f_ (subst:term_or_form Subst.t) (t:PA.term) : term_or_form =
-    print_string "happens";
     (* polymorphic equality *)
     let mk_app = SReg.find_exn reg Mc2_uf.k_app in
     let mk_const = SReg.find_exn reg Mc2_uf.k_const in
@@ -245,9 +311,11 @@ module Make(ARG : sig
           | rhs -> rhs
           | exception Not_found ->
             match Ctx.find_term_fun v with
-            | f -> mk_app f [] |> ret_any
-            | exception Not_found ->
-              Error.errorf "variable %S not bound" v
+            | Some f -> mk_app f [] |> ret_any
+            | None ->
+              match Ctx.find_term_sel v with
+              | Some f -> mk_app f [] |> ret_any
+              | None -> Error.errorf "variable %S not bound" v
         end
     in
     begin match t with
@@ -268,9 +336,16 @@ module Make(ARG : sig
             in
             conv_t_or_f_ subst rhs
           | exception Not_found ->
-            let id = Ctx.find_term_fun f in
-            let l = List.map (conv_term_ subst) l in
-            mk_app id l |> ret_any
+            begin match Ctx.find_term_fun f  with 
+             |Some id -> let l = List.map (conv_term_ subst) l in
+                    mk_app id l |> ret_any
+             |None ->
+                begin match Ctx.find_term_sel f with
+                  | Some id -> let l = List.map (conv_term_ subst) l in
+                              mk_app id l |> ret_any
+                  | None -> Error.errorf "variable %S not bound" f
+                end 
+            end
         end
       | PA.If (a,b,c) ->
         let a = conv_form subst a in
@@ -487,6 +562,42 @@ module Make(ARG : sig
     Log.debugf 4 (fun k->k "(@[<1>statement_of_ast@ %a@])" PA.pp_stmt s);
     Ctx.set_loc ?loc:(PA.loc s) ();
     conv_statement_aux s
+  
+  and conv_statement_aux_sel (stmt:PA.statement) : Stmt.t list =
+  match PA.view stmt with
+  | PA.Stmt_decl fr ->
+      Log.debugf 5 (fun k->k ">>> conv stmt decl %a" (PA.pp_fun_decl PA.pp_ty) fr);
+      let f, args, ret = conv_fun_decl fr in
+      let id = ID.make f in
+      decl id args ret;
+      Ctx.add_term_sel_ f id;
+      [Stmt.Stmt_decl (id, args,ret)]
+    | _ -> errorf_ctx "non-selector inputted as selector"
+
+    and conv_statement_aux_adt (stmt:PA.statement) : Stmt.t list =
+    match PA.view stmt with
+    | PA.Stmt_decl_sort (s,n) ->
+      if n > 0 then (
+        errorf_ctx "cannot handle polymorphic type %s" s (* TODO *)
+      );
+      let id_thing = ID.make s in
+      (* declare type, and save it *)
+      SReg.find_exn reg Mc2_unin_sort.k_decl_sort id_thing n;
+      let ty = SReg.find_exn reg Mc2_unin_sort.k_make id_thing [] in
+      Ctx.add_ty_ s id_thing ty;
+      begin match ty with 
+        |Bool -> ()
+        |Ty { id; _ } -> print_string ("adding adt_ty: " ^ s ^ " and this is the real id(hopefully): "); print_int id; print_string "\n";
+                         Ctx.add_adt_ty_ id id_thing ty; (* Saving the fact that this is an adt type in addition to just a regular type*)
+
+      end;
+      print_string ("adding adt_ty: " ^ s ^ " and this is the id: "); print_int ((ID.id) id_thing); print_string "\n";
+      [Stmt.Stmt_ty_decl (id_thing, n)]
+
+      | _ -> errorf_ctx "non-adt sort inputted as adt"
+
+
+
 
   and conv_statement_aux (stmt:PA.statement) : Stmt.t list =
     match PA.view stmt with
@@ -507,7 +618,71 @@ module Make(ARG : sig
       Ctx.add_ty_ s id ty;
       [Stmt.Stmt_ty_decl (id, n)]
     | PA.Stmt_decl fr ->
+      (*TODO(Phase 3): This is where variables are defined. So I want to check if it is a constant
+                        and if its type is an ADT and if so, then store some information about it.*)
+      (* It would be nice for the sake of testing to be able to print out a PA.ty, but I'm not sure how to do that*)
+      Log.debugf 5 (fun k->k ">>> conv stmt decl %a" (PA.pp_fun_decl PA.pp_ty) fr);
       let f, args, ret = conv_fun_decl fr in
+
+      (* Bunch of testing stuff*)
+      (* print_string ("defining a variable: " ^ f ^ "\n");
+      let rec find_type (return: PA.ty) = 
+        begin match return with
+          | PA.Ty_bool -> print_string "Type: bool \n"
+          | PA.Ty_real  -> print_string "Type: real \n"
+          | PA.Ty_app (_, _) -> print_string "Type: app \n"
+          | PA.Ty_arrow (_, _) -> print_string "Type: arrow \n"
+        end
+      in
+      (* begin match (args, ret) with
+        |([arg], _) -> (Ctx.add_adt_vars f arg);
+        | _ -> ;
+      end *)
+      print_string "here are the variables: ";
+      print_list fr.PA.fun_ty_vars;
+      PA.fpf Format.std_formatter "(@[declare-fun@ %a@])" (PA.pp_par (PA.pp_fun_decl PA.pp_ty)) (fr.PA.fun_ty_vars,fr);
+      print_string "\n";
+
+      find_type fr.PA.fun_ret; *)
+
+
+      (* let rec print_args (l: PA.typed_var list) = 
+        begin match l with 
+          | (s, t)::body -> print_string s; print_args body
+          |[] -> ()
+          |_ -> ()
+        end
+      in
+      print_args fr.fun_args; *)
+
+
+      (* here i am adding the variable to the context kinda, but it is a little weird since I'm not sure if fun_ret is the right type*)
+      (* the other issue is that i only want to do this for adts and not regular sorts, but with my current implementation, I do not differentiate between the two*)
+
+      (* phase 3: this doesn't work right now but should check if our sort is in the adt thing and then add vars if so*)
+
+
+      begin match ret with 
+        |Bool -> ()
+        |Ty { id; _ } -> print_string ("this is the id of " ^ fr.fun_name ^ ": "); print_int id; print_string "\n";
+                         if ((Ctx.in_adt_ty id) && (args == [])) then print_string ("added adt variable to context " ^ fr.fun_name ^ "\n"); 
+                         if ((Ctx.in_adt_ty id) && (args == []))  then Ctx.add_adt_vars fr.fun_name fr.fun_ret;
+      end;
+
+      print_string ("checking if adt_ty: " ^ fr.fun_name ^ "\n");
+
+
+      (* begin match Ctx.find_adt_ty fr.fun_name with 
+        |Some(ty) -> Ctx.add_adt_vars fr.fun_name fr.fun_ret
+        |None -> ()
+      end *)
+
+      (* begin match (StrTbl.get Ctx.t.adt_tys fr.fun_name) with
+        | Some (_, ty) -> Ctx.add_adt_vars fr.fun_name fr.fun_ret;
+        | _ -> ();
+      end *)
+
+
       let id = ID.make f in
       decl id args ret;
       Ctx.add_term_fun_ f id;
@@ -517,36 +692,73 @@ module Make(ARG : sig
       (* TODO Federico: store data type information for processing later *)
       (* TODO Federico: follow case above for PA.Stmt_decl to add declarations for our blasting *)
       (* Everything between this and the next comment was written by Amar*)
-      let rec get_constructors (lst: PA.cstor list) =
+      (* I am not really sure how to find cstor_type in the below function *)
+      let rec make_selectors (cstor_name: string) (cstor_type: PA.ty) (cstor_args: (string * PA.ty) list) (m: int) =
+        begin match cstor_args with
+          |[] -> []
+          |(s, t)::body ->
+            (* begin match t with
+              |PA.Ty_app (v, []) -> print_string ("   selector: " ^ s ^ " of type: " ^ v);
+              |_ -> print_string "";
+            end; *)
+            (* print_string ("   selector: " ^ s ^"(" ^cstor_name ^")"); *)
+            List.append (conv_statement_aux_sel({ loc = stmt.loc; 
+                                             stmt = (Stmt_decl ({fun_ty_vars = []; 
+                                                                                 fun_name = s; 
+                                                                                 fun_args = [(cstor_type)]; 
+                                                                                 fun_ret =  t})) }))
+                        (make_selectors cstor_name cstor_type body (m + 1))
+      end
+        in
+      let rec make_functions (s: PA.ty_var) (n: int) (lst: PA.cstor list) =
         begin match lst with
           |[] -> []
           |head::body ->
-            print_string head.cstor_name;
-            print_string "howdy";
-            get_constructors body (* this bug may just come from how I need to write Stmt_data in Statement.ml*)
+            (* print_string (head.cstor_name ^": ");
+            (print_list head.cstor_ty_vars); *)
+            let adt_type = (PA.Ty_app (s, []): PA.ty) (* not sure if this is the right type but it seems correct-ish*)
+              in
+            let constructor = (conv_statement_aux({ loc = stmt.loc; 
+                                                    stmt = (Stmt_decl ({fun_ty_vars = head.cstor_ty_vars; 
+                                                                                        fun_name = head.cstor_name; 
+                                                                                        fun_args = List.map (fun (x, y) -> y) head.cstor_args; (* I don't really know what to put for the type here because there seems to be a list of types for each cstor - idk; Just put Ty_Bool for right now*)
+                                                                                        fun_ret =  adt_type}))})) (*not really sure what body should go here: putting true for rn; I probably want to do something like " Is_a of string * term"*)
+                in
+            let tester =  (conv_statement_aux({ loc = stmt.loc; 
+                                                stmt = (Stmt_decl ({fun_ty_vars = []; 
+                                                                                    fun_name = ("is_" ^ head.cstor_name); 
+                                                                                    fun_args = [(adt_type)]; (* I don't really know what to put for the type here because there seems to be a list of types for each cstor - idk; Just put Ty_Bool for right now*)
+                                                                                    fun_ret =  PA.Ty_bool})) })) (*not really sure what body should go here: putting true for rn; I probably want to do something like " Is_a of string * term" *)
+                in
+            let selectors = (make_selectors head.cstor_name adt_type head.cstor_args 0) (* I don't really know what to put for the type here because there seems to be a list of types for each cstor - idk; Just put Ty_bool for rn*)
+                in
+            List.append (List.append (List.append constructor tester) selectors) (make_functions s n body)
           |_ -> errorf_ctx "incorrect datatype input"
-      end
-          in
+        end
+        in
       let rec analyze_ADT (lst : ((string * level) * PA.cstor list) list) =
         begin match lst with
           |[] -> []
-          |((s, level), constructor_list)::body ->
-                if level > 0 then (
+          |((s, n), constructor_list)::body ->
+                if n > 0 then (
                   errorf_ctx "cannot handle polymorphic type %s" s
                 );
-                let id = ID.make s in
-                (* declare sort, and save it *)
-                SReg.find_exn reg Mc2_unin_sort.k_decl_sort id level;
-                let ty = SReg.find_exn reg Mc2_unin_sort.k_make id [] in
-                Ctx.add_ty_ s id ty;
-                let constrs = get_constructors constructor_list in
-                []
+                (* print_list constrs; *)
+                (*this is the current methodology to store all ADT information: might need to change in the future*)
+                (* state.ADT_instances <- state.ADT_instances::((s, n), constructor_list);  *)
+                Ctx.add_def_adt s constructor_list;
+                let declare_sort = (conv_statement_aux_adt ({ loc = stmt.loc; stmt = (Stmt_decl_sort (s, n)) })) (* need someway to save the sort type we get from here and then use it in make_functions*)
+                  in
+                (* print_stmts ({ loc = stmt.loc; stmt = (Stmt_decl_sort (s, n)) }); *)
+                List.append
+                  (List.append declare_sort (make_functions s n constructor_list))
+                  (analyze_ADT body)
                 (* Stmt.Stmt_data (id, n, constrs) :: analyze_ADT body *)
           |_ -> errorf_ctx "incorrect datatype input"
-      end
-              in
+        end
+          in
               (* state.number_terms<-(state.number_terms+1); (*want to increment the number of variables by 1 *)*)
-              analyze_ADT _l
+      analyze_ADT _l
       (* end of Amar section *)
     | PA.Stmt_funs_rec _defs ->
       errorf_ctx "not implemented: definitions in %a" PA.pp_stmt stmt
@@ -576,17 +788,84 @@ module Make(ARG : sig
       (* TODO Federico: Rewrite term t using stored datatype declarations *)
       (* TODO Federico: Add side assertions for blasting *)
 
-      (*Amar: We need somthing slightly different here, we don't have to add the side assertions here.
+      (*Amar: Phase 2: We need somthing slightly different here, we don't have to add the side assertions here.
               Instead, we will keep track of the "depth" and add the side assertions only when we need to check-sat *)
-
       (* Everything between this and the next comment was written by Amar*)
-        
+      
+      let rec helper t = begin match t with 
+      | PA.Eq(a, b) -> max (helper a) (helper b)
+      | PA.App (f, l) ->
+        Printf.printf "HERE with %s\n" f;
+        (* Printf.printf "Keys: %s\n" (String.concat " " (StrTbl.keys_list Ctx.t.Ctx.def_selectors)); *)
+        (* TODO: see if it's a selector, not a fun *)
+
+        begin match Ctx.find_term_sel f with
+        | Some id -> 
+          (* let l = List.map (conv_term_ subst) l in *)
+          List.fold_left (fun acc x -> acc + helper x) 1 l
+        | None -> 
+          (* let id = Ctx.find_term_fun f in
+          let l = List.map (conv_term_ subst) l in *)
+          List.fold_left (fun acc x -> acc + helper x) 0 l
+        end
+
+      (* TODO: instead of just 0 handle all the other cases *)
+      | PA.Const v -> 0
+      | PA.App ("xor", [a;b]) -> max (helper a) (helper b)
+      | PA.App (f, []) -> 0
+      | PA.If (a,b,c) -> max (helper a) (max (helper b) (helper c))
+      | PA.Let (bs,body) -> (List.fold_left (fun acc (a, b) -> acc + helper b) 0 bs) + (helper body)
+      | PA.And l -> List.fold_left (fun acc x -> acc + helper x) 0 l
+      | PA.Or l -> List.fold_left (fun acc x -> acc + helper x) 0 l
+      | PA.Imply (a,b) -> max (helper a) (helper b)
+      | PA.Eq (a,b) -> max (helper a) (helper b)
+      | PA.Distinct l -> List.fold_left (fun acc x -> acc + helper x) 0 l
+      | PA.Not f -> helper f
+      | PA.True -> 0
+      | PA.False -> 0
+      | PA.Arith (op, l) -> List.fold_left (fun acc x -> acc + helper x) 0 l
+      | PA.Attr (t,_) -> helper t
+      | PA.Cast (t, ty_expect) -> helper t
+      | PA.HO_app _ ->
+        errorf_ctx "cannot handle HO application"
+      | PA.Fun _ -> errorf_ctx "cannot handle lambdas"
+      | PA.Match (_lhs, _l) ->
+        errorf_ctx "cannot handle match"
+      | PA.Is_a _ ->
+        errorf_ctx "cannot handle is-a" (* TODO *)
+      | PA.Forall _ | PA.Exists _ ->
+        errorf_ctx "cannot handle quantifiers" (* TODO *)
+      | _ -> 0
+      end in
+
+      Ctx.update_max_depth (helper t);
+
       (* end of Amar section*)
       Log.debugf 50 (fun k->k ">>> conv assert %a" PA.pp_term t);
       let cs = conv_bool_term t in
+      (* print_string (List.map (fun x::y -> x) (List.map (fun x::y -> x) cs)); *)
       Log.debugf 60 (fun k->k ">>> assert clauses %a" Fmt.(Dump.(list @@ list @@ Atom.pp)) cs);
+
       [Stmt.Stmt_assert_clauses cs]
-    | PA.Stmt_check_sat -> [Stmt.Stmt_check_sat]
+    | PA.Stmt_check_sat -> 
+      (*TODO: Phase 3: Need to use the calculated depth of the function to generate all of the 
+      extra statements about ADTs that we need to assert*)
+      (* The statements are of four types: 1. every term must satisfy one tester
+                                           2. constructors and testers play nicely with one another
+                                           3. constructors and selectors play nicely with one another
+                                           4. prevents cyclicality
+      *)
+
+      (* As a starting task, I will try and build the correct assertions about the adts that appear in the query so far,
+      but I will not do anything about their subtrees yet*)
+
+      (Ctx.t.Ctx.def_funs); (* this should be a map of all of the functions*)
+
+      (StrTbl.find Ctx.t.Ctx.def_adts); (* this should be a map of all of the adts 
+                                            -> I think I need something extra, i.e. a hashmap of ADT variables that are declared*)
+
+      
+      [Stmt.Stmt_check_sat]
     | PA.Stmt_check_sat_assuming _
     | PA.Stmt_get_assertions
     | PA.Stmt_get_option _
@@ -605,4 +884,4 @@ module Make(ARG : sig
       (* TODO: handle more of these *)
       errorf_ctx "cannot handle statement %a" PA.pp_stmt stmt
 
-end
+end (* why is this end here?? its from the original code, but it seems like it's just hanging -> ask Federico*)

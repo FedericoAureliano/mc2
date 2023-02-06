@@ -22,11 +22,11 @@ let pp out = function
   | Stmt_set_option l -> Fmt.fprintf out "(@[set-logic@ %a@])" (Util.pp_list Fmt.string) l
   | Stmt_set_info (a,b) -> Fmt.fprintf out "(@[set-info@ %s@ %s@])" a b
   | Stmt_check_sat -> Fmt.string out "(check-sat)"
-  | Stmt_ty_decl (s,n) -> print_string "howdy"; Fmt.fprintf out "(@[declare-sort@ %a %d@])" ID.pp s n
+  | Stmt_ty_decl (s,n) -> Fmt.fprintf out "(@[declare-sort@ %a %d@])" ID.pp s n
   | Stmt_decl (id,args,ret) ->
-    (* print_string "howdy"; *)
     Fmt.fprintf out "(@[<1>declare-fun@ %a (@[%a@])@ %a@])"
       ID.pp id (Util.pp_list Type.pp) args Type.pp ret
+  (* | Stmt_ty_decl (s,n, constrs) -> Fmt.fprintf out "(@[declare-ADT@ %a %d@])" ID.pp s n trying to follow the format in Stmt_ty_decl *)
   | Stmt_assert_clauses cs ->
     let pp_c out c =
       Fmt.fprintf out "(@[assert-clause@ %a@])" (Util.pp_list Atom.pp) c
