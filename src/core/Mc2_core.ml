@@ -21,6 +21,7 @@ module ID = ID
 module Statement = Statement
 module Bound_var = Bound_var
 module Error = Error
+module Unin = Unin
 (* two new ones I added*)
 (* module Ast = Ast
 module Loc = Loc *)

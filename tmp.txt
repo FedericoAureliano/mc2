@@ -1,0 +1,792 @@
+[34;1m[5|0.013][0m add plugin builtins with ID 0
+[34;1m[5|0.014][0m register service `builtins.true`
+[34;1m[5|0.014][0m register service `builtins.false`
+[34;1m[5|0.014][0m add plugin propositional with ID 1
+[34;1m[5|0.014][0m register service `propositional.fresh`
+[34;1m[5|0.014][0m register service `propositional.cnf`
+[34;1m[5|0.014][0m add plugin unin_sort with ID 2
+[34;1m[5|0.014][0m register service `unin_sort.decl`
+[34;1m[5|0.014][0m register service `unin_sort.make`
+[34;1m[5|0.014][0m register service `unin_sort.eq`
+[34;1m[5|0.014][0m add plugin uf with ID 3
+[34;1m[5|0.014][0m register service `uf.app`
+[34;1m[5|0.014][0m register service `uf.const`
+[34;1m[5|0.014][0m register service `uf.decl`
+[34;1m[5|0.014][0m add plugin lra with ID 4
+[34;1m[5|0.014][0m register service `lra.rat`
+[34;1m[5|0.014][0m register service `lra.make_const`
+[34;1m[5|0.014][0m register service `lra.make_pred`
+[34;1m[4|0.016][0m
+  (statement_of_ast (declare-datatypes ((Color 0)) (((red) (green) (blue)))))
+adding the constructor red of adt Color to the context 
+adding the constructor green of adt Color to the context 
+adding the constructor blue of adt Color to the context 
+[34;1m[3|0.016][0m (unin_sort.[33mdeclare-sort[0m Color/0 :arity 0)
+ADDED TO CONTEXT : Color
+adding adt_ty: Color and this is the real id(hopefully): 0
+adding adt_ty: Color and this is the id: 0
+[34;1m[5|0.016][0m >>> conv stmt decl red () Color
+this is the id of red: 0
+added adt variable to context red
+checking if adt_ty: red
+[34;1m[5|0.016][0m (uf.decl red/1 () Color/0)
+[34;1m[5|0.016][0m >>> conv stmt decl is_red (Color) Bool
+checking if adt_ty: is_red
+[34;1m[5|0.016][0m (uf.decl is_red/2 (Color/0) Bool)
+[34;1m[5|0.016][0m >>> conv stmt decl green () Color
+this is the id of green: 0
+added adt variable to context green
+checking if adt_ty: green
+[34;1m[5|0.016][0m (uf.decl green/3 () Color/0)
+[34;1m[5|0.016][0m >>> conv stmt decl is_green (Color) Bool
+checking if adt_ty: is_green
+[34;1m[5|0.016][0m (uf.decl is_green/4 (Color/0) Bool)
+[34;1m[5|0.017][0m >>> conv stmt decl blue () Color
+this is the id of blue: 0
+added adt variable to context blue
+checking if adt_ty: blue
+[34;1m[5|0.017][0m (uf.decl blue/5 () Color/0)
+[34;1m[5|0.017][0m >>> conv stmt decl is_blue (Color) Bool
+checking if adt_ty: is_blue
+[34;1m[5|0.017][0m (uf.decl is_blue/6 (Color/0) Bool)
+[34;1m[4|0.017][0m
+  (statement_of_ast
+    (declare-datatypes
+       ((MyList 0))
+       (((Nil) (Cons (Head Real) (Tail MyList))))))
+adding the constructor Nil of adt MyList to the context 
+adding the constructor Cons of adt MyList to the context 
+[34;1m[3|0.017][0m (unin_sort.[33mdeclare-sort[0m MyList/7 :arity 0)
+ADDED TO CONTEXT : MyList
+adding adt_ty: MyList and this is the real id(hopefully): 1
+adding adt_ty: MyList and this is the id: 7
+[34;1m[5|0.017][0m >>> conv stmt decl Nil () MyList
+this is the id of Nil: 1
+added adt variable to context Nil
+checking if adt_ty: Nil
+[34;1m[5|0.017][0m (uf.decl Nil/8 () MyList/7)
+[34;1m[5|0.017][0m >>> conv stmt decl is_Nil (MyList) Bool
+checking if adt_ty: is_Nil
+[34;1m[5|0.017][0m (uf.decl is_Nil/9 (MyList/7) Bool)
+[34;1m[5|0.017][0m >>> conv stmt decl Cons (Real MyList) MyList
+this is the id of Cons: 1
+checking if adt_ty: Cons
+[34;1m[5|0.017][0m (uf.decl Cons/10 (ℚ MyList/7) MyList/7)
+[34;1m[5|0.017][0m >>> conv stmt decl is_Cons (MyList) Bool
+checking if adt_ty: is_Cons
+[34;1m[5|0.017][0m (uf.decl is_Cons/11 (MyList/7) Bool)
+[34;1m[5|0.017][0m >>> conv stmt decl Tail (MyList) MyList
+[34;1m[5|0.017][0m (uf.decl Tail/12 (MyList/7) MyList/7)
+Tail added to context as selector 
+[34;1m[5|0.017][0m >>> conv stmt decl Head (MyList) Real
+[34;1m[5|0.017][0m (uf.decl Head/13 (MyList/7) ℚ)
+Head added to context as selector 
+[34;1m[4|0.017][0m (statement_of_ast (declare-fun real_test () Real))
+[34;1m[5|0.017][0m >>> conv stmt decl real_test () Real
+checking if adt_ty: real_test
+[34;1m[5|0.017][0m (uf.decl real_test/14 () ℚ)
+[34;1m[4|0.017][0m (statement_of_ast (declare-fun bool_test () Bool))
+[34;1m[5|0.017][0m >>> conv stmt decl bool_test () Bool
+checking if adt_ty: bool_test
+[34;1m[5|0.017][0m (uf.decl bool_test/15 () Bool)
+[34;1m[4|0.017][0m (statement_of_ast (assert (= green blue)))
+ Old Max_depth: 0
+ New Max_depth: 0
+[34;1m[50|0.017][0m >>> conv assert (= green blue)
+[34;1m[60|0.017][0m >>> assert clauses [[(= green blue)]]
+[34;1m[4|0.017][0m (statement_of_ast (assert (= 7 (Head (Tail (Cons 1 Nil))))))
+HERE with Head
+HERE with Tail
+HERE with Cons
+ Old Max_depth: 0
+ New Max_depth: 2
+[34;1m[50|0.018][0m >>> conv assert (= 7 (Head (Tail (Cons 1 Nil))))
+[34;1m[60|0.018][0m >>> assert clauses [[((Head (Tail (Cons 1 Nil))) + -7 = 0)]]
+[34;1m[4|0.018][0m (statement_of_ast (assert (= (Tail (Cons 2 Nil)) Nil)))
+HERE with Tail
+HERE with Cons
+ Old Max_depth: 2
+ New Max_depth: 2
+[34;1m[50|0.018][0m >>> conv assert (= (Tail (Cons 2 Nil)) Nil)
+[34;1m[60|0.018][0m >>> assert clauses [[(= Nil (Tail (Cons 2 Nil)))]]
+[34;1m[4|0.018][0m (statement_of_ast (assert (= Nil (Tail Nil))))
+HERE with Tail
+ Old Max_depth: 2
+ New Max_depth: 2
+[34;1m[50|0.018][0m >>> conv assert (= Nil (Tail Nil))
+[34;1m[60|0.018][0m >>> assert clauses [[(= Nil (Tail Nil))]]
+[34;1m[4|0.018][0m (statement_of_ast (assert (= 7 (Head (Tail (Tail (Cons 1 Nil)))))))
+HERE with Head
+HERE with Tail
+HERE with Tail
+HERE with Cons
+ Old Max_depth: 2
+ New Max_depth: 3
+[34;1m[50|0.018][0m >>> conv assert (= 7 (Head (Tail (Tail (Cons 1 Nil)))))
+[34;1m[60|0.018][0m
+  >>> assert clauses [[((Head (Tail (Tail (Cons 1 Nil)))) + -7 = 0)]]
+[34;1m[4|0.018][0m
+  (statement_of_ast
+    (assert (not (= 7 (Head (Tail (Tail (Tail (Cons 1 Nil)))))))))
+HERE with Head
+HERE with Tail
+HERE with Tail
+HERE with Tail
+HERE with Cons
+ Old Max_depth: 3
+ New Max_depth: 4
+[34;1m[50|0.018][0m
+  >>> conv assert (not (= 7 (Head (Tail (Tail (Tail (Cons 1 Nil)))))))
+[34;1m[60|0.018][0m
+  >>> assert clauses [[¬((Head (Tail (Tail (Tail (Cons 1 Nil))))) + -7 = 0)]]
+[34;1m[4|0.018][0m (statement_of_ast (declare-sort silly_sort 0))
+[34;1m[3|0.019][0m (unin_sort.[33mdeclare-sort[0m silly_sort/16 :arity 0)
+ADDED TO CONTEXT : silly_sort
+[34;1m[4|0.019][0m (statement_of_ast (declare-fun billy () silly_sort))
+[34;1m[5|0.019][0m >>> conv stmt decl billy () silly_sort
+this is the id of billy: 2
+checking if adt_ty: billy
+[34;1m[5|0.019][0m (uf.decl billy/17 () silly_sort/16)
+[34;1m[4|0.019][0m (statement_of_ast (declare-fun hilly () silly_sort))
+[34;1m[5|0.019][0m >>> conv stmt decl hilly () silly_sort
+this is the id of hilly: 2
+checking if adt_ty: hilly
+[34;1m[5|0.019][0m (uf.decl hilly/18 () silly_sort/16)
+[34;1m[4|0.019][0m (statement_of_ast (declare-sort another_sort 0))
+[34;1m[3|0.019][0m (unin_sort.[33mdeclare-sort[0m another_sort/19 :arity 0)
+ADDED TO CONTEXT : another_sort
+[34;1m[4|0.019][0m (statement_of_ast (declare-fun thing_one () another_sort))
+[34;1m[5|0.019][0m >>> conv stmt decl thing_one () another_sort
+this is the id of thing_one: 3
+checking if adt_ty: thing_one
+[34;1m[5|0.019][0m (uf.decl thing_one/20 () another_sort/19)
+[34;1m[4|0.019][0m (statement_of_ast (declare-fun thing_two () another_sort))
+[34;1m[5|0.019][0m >>> conv stmt decl thing_two () another_sort
+this is the id of thing_two: 3
+checking if adt_ty: thing_two
+[34;1m[5|0.019][0m (uf.decl thing_two/21 () another_sort/19)
+[34;1m[4|0.019][0m (statement_of_ast (check-sat))
+in check_sat 
+in print_adt_vars 
+red green blue Nil happens
+this is the var red
+happens2 happens2 happens2 happens2 var_name: red n: 5this is the var red
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with red
+HERE with is_green
+HERE with red
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.019][0m
+  >>> conv assert (or (is_red (red )) (is_green (red )) (is_blue (red )))
+[34;1m[60|0.019][0m >>> assert clauses [[(is_blue red);(is_green red);(is_red red)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with red
+HERE with red
+HERE with is_red
+HERE with red
+HERE with red
+HERE with green
+HERE with is_green
+HERE with red
+HERE with red
+HERE with blue
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.019][0m
+  >>> conv assert (and (= (is_red (red )) (= (red ) (red )))
+                   (= (is_green (red )) (= (green ) (red )))
+                   (= (is_blue (red )) (= (blue ) (red ))))
+[34;1m[60|0.019][0m
+  >>> assert clauses [[true;¬(is_red red)];[(is_red red);¬true];
+                      [(= green red);¬(is_green red)];
+                      [(is_green red);¬(= green red)];
+                      [(= blue red);¬(is_blue red)];
+                      [(is_blue red);¬(= blue red)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.019][0m >>> conv assert (and )
+[34;1m[60|0.020][0m >>> assert clauses []
+var_name: red n: 5this is the var red
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with red
+HERE with is_green
+HERE with red
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (or (is_red (red )) (is_green (red )) (is_blue (red )))
+[34;1m[60|0.020][0m >>> assert clauses [[(is_blue red);(is_green red);(is_red red)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with red
+HERE with red
+HERE with is_red
+HERE with red
+HERE with red
+HERE with green
+HERE with is_green
+HERE with red
+HERE with red
+HERE with blue
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (and (= (is_red (red )) (= (red ) (red )))
+                   (= (is_green (red )) (= (green ) (red )))
+                   (= (is_blue (red )) (= (blue ) (red ))))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[true;¬(is_red red)];[(is_red red);¬true];
+                      [(= green red);¬(is_green red)];
+                      [(is_green red);¬(= green red)];
+                      [(= blue red);¬(is_blue red)];
+                      [(is_blue red);¬(= blue red)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m >>> conv assert (and )
+[34;1m[60|0.020][0m >>> assert clauses []
+var_name: red n: 5this is the var red
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with red
+HERE with is_green
+HERE with red
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (or (is_red (red )) (is_green (red )) (is_blue (red )))
+[34;1m[60|0.020][0m >>> assert clauses [[(is_blue red);(is_green red);(is_red red)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with red
+HERE with red
+HERE with is_red
+HERE with red
+HERE with red
+HERE with green
+HERE with is_green
+HERE with red
+HERE with red
+HERE with blue
+HERE with is_blue
+HERE with red
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (and (= (is_red (red )) (= (red ) (red )))
+                   (= (is_green (red )) (= (green ) (red )))
+                   (= (is_blue (red )) (= (blue ) (red ))))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[true;¬(is_red red)];[(is_red red);¬true];
+                      [(= green red);¬(is_green red)];
+                      [(is_green red);¬(= green red)];
+                      [(= blue red);¬(is_blue red)];
+                      [(is_blue red);¬(= blue red)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: red
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m >>> conv assert (and )
+[34;1m[60|0.020][0m >>> assert clauses []
+happens
+this is the var green
+happens2 happens2 happens2 happens2 var_name: green n: 5this is the var green
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with green
+HERE with is_green
+HERE with green
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (or (is_red (green )) (is_green (green ))
+                   (is_blue (green )))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[(is_blue green);(is_green green);(is_red green)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with green
+HERE with red
+HERE with is_red
+HERE with green
+HERE with green
+HERE with green
+HERE with is_green
+HERE with green
+HERE with green
+HERE with blue
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (and (= (is_red (green )) (= (red ) (green )))
+                   (= (is_green (green )) (= (green ) (green )))
+                   (= (is_blue (green )) (= (blue ) (green ))))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[(= green red);¬(is_red green)];
+                      [(is_red green);¬(= green red)];
+                      [true;¬(is_green green)];[(is_green green);¬true];
+                      [(= green blue);¬(is_blue green)];
+                      [(is_blue green);¬(= green blue)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m >>> conv assert (and )
+[34;1m[60|0.020][0m >>> assert clauses []
+var_name: green n: 5this is the var green
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with green
+HERE with is_green
+HERE with green
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (or (is_red (green )) (is_green (green ))
+                   (is_blue (green )))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[(is_blue green);(is_green green);(is_red green)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with green
+HERE with red
+HERE with is_red
+HERE with green
+HERE with green
+HERE with green
+HERE with is_green
+HERE with green
+HERE with green
+HERE with blue
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.020][0m
+  >>> conv assert (and (= (is_red (green )) (= (red ) (green )))
+                   (= (is_green (green )) (= (green ) (green )))
+                   (= (is_blue (green )) (= (blue ) (green ))))
+[34;1m[60|0.020][0m
+  >>> assert clauses [[(= green red);¬(is_red green)];
+                      [(is_red green);¬(= green red)];
+                      [true;¬(is_green green)];[(is_green green);¬true];
+                      [(= green blue);¬(is_blue green)];
+                      [(is_blue green);¬(= green blue)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (and )
+[34;1m[60|0.021][0m >>> assert clauses []
+var_name: green n: 5this is the var green
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with green
+HERE with is_green
+HERE with green
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (or (is_red (green )) (is_green (green ))
+                   (is_blue (green )))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(is_blue green);(is_green green);(is_red green)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with green
+HERE with red
+HERE with is_red
+HERE with green
+HERE with green
+HERE with green
+HERE with is_green
+HERE with green
+HERE with green
+HERE with blue
+HERE with is_blue
+HERE with green
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (and (= (is_red (green )) (= (red ) (green )))
+                   (= (is_green (green )) (= (green ) (green )))
+                   (= (is_blue (green )) (= (blue ) (green ))))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(= green red);¬(is_red green)];
+                      [(is_red green);¬(= green red)];
+                      [true;¬(is_green green)];[(is_green green);¬true];
+                      [(= green blue);¬(is_blue green)];
+                      [(is_blue green);¬(= green blue)]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: green
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (and )
+[34;1m[60|0.021][0m >>> assert clauses []
+happens
+this is the var blue
+happens2 happens2 happens2 happens2 var_name: blue n: 5this is the var blue
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with blue
+HERE with is_green
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (or (is_red (blue )) (is_green (blue )) (is_blue (blue )))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(is_blue blue);(is_green blue);(is_red blue)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with blue
+HERE with red
+HERE with is_red
+HERE with blue
+HERE with blue
+HERE with green
+HERE with is_green
+HERE with blue
+HERE with blue
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (and (= (is_red (blue )) (= (red ) (blue )))
+                   (= (is_green (blue )) (= (green ) (blue )))
+                   (= (is_blue (blue )) (= (blue ) (blue ))))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(= blue red);¬(is_red blue)];
+                      [(is_red blue);¬(= blue red)];
+                      [(= green blue);¬(is_green blue)];
+                      [(is_green blue);¬(= green blue)];
+                      [true;¬(is_blue blue)];[(is_blue blue);¬true]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (and )
+[34;1m[60|0.021][0m >>> assert clauses []
+var_name: blue n: 5this is the var blue
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with blue
+HERE with is_green
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (or (is_red (blue )) (is_green (blue )) (is_blue (blue )))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(is_blue blue);(is_green blue);(is_red blue)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with blue
+HERE with red
+HERE with is_red
+HERE with blue
+HERE with blue
+HERE with green
+HERE with is_green
+HERE with blue
+HERE with blue
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (and (= (is_red (blue )) (= (red ) (blue )))
+                   (= (is_green (blue )) (= (green ) (blue )))
+                   (= (is_blue (blue )) (= (blue ) (blue ))))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(= blue red);¬(is_red blue)];
+                      [(is_red blue);¬(= blue red)];
+                      [(= green blue);¬(is_green blue)];
+                      [(is_green blue);¬(= green blue)];
+                      [true;¬(is_blue blue)];[(is_blue blue);¬true]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (and )
+[34;1m[60|0.021][0m >>> assert clauses []
+var_name: blue n: 5this is the var blue
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_red
+HERE with blue
+HERE with is_green
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (or (is_red (blue )) (is_green (blue )) (is_blue (blue )))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(is_blue blue);(is_green blue);(is_red blue)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+HERE with blue
+HERE with red
+HERE with is_red
+HERE with blue
+HERE with blue
+HERE with green
+HERE with is_green
+HERE with blue
+HERE with blue
+HERE with blue
+HERE with is_blue
+HERE with blue
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m
+  >>> conv assert (and (= (is_red (blue )) (= (red ) (blue )))
+                   (= (is_green (blue )) (= (green ) (blue )))
+                   (= (is_blue (blue )) (= (blue ) (blue ))))
+[34;1m[60|0.021][0m
+  >>> assert clauses [[(= blue red);¬(is_red blue)];
+                      [(is_red blue);¬(= blue red)];
+                      [(= green blue);¬(is_green blue)];
+                      [(is_green blue);¬(= green blue)];
+                      [true;¬(is_blue blue)];[(is_blue blue);¬true]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: redmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: greenmake_selector_constructor_axiomin antoher special case: 
+ const_name: Color 
+ var: blue
+ cstor_name: bluemake_selector_constructor_axiom Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (and )
+[34;1m[60|0.021][0m >>> assert clauses []
+happens
+this is the var Nil
+happens2 happens2 happens2 var_name: Nil n: 5this is the var Nil
+make_tester_axiom 
+make_tester_axiom 
+make_tester_axiom 
+HERE with is_Nil
+HERE with Nil
+HERE with is_Cons
+HERE with Nil
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.021][0m >>> conv assert (or (is_Nil (Nil )) (is_Cons (Nil )))
+[34;1m[60|0.022][0m >>> assert clauses [[(is_Cons Nil);(is_Nil Nil)]]
+make_tester_constructor_axiom
+make_tester_constructor_axiom
+[34;1m[5|0.022][0m >>> conv stmt decl contrived_variable_0 () Real
+checking if adt_ty: contrived_variable_0
+[34;1m[5|0.022][0m (uf.decl contrived_variable_0/22 () ℚ)
+ variable: Head 0[34;1m[5|0.022][0m >>> conv stmt decl contrived_variable_5 () MyList
+this is the id of contrived_variable_5: 1
+added adt variable to context contrived_variable_5
+checking if adt_ty: contrived_variable_5
+[34;1m[5|0.022][0m (uf.decl contrived_variable_5/23 () MyList/7)
+ variable: Tail 5make_tester_constructor_axiom
+HERE with Nil
+HERE with Nil
+HERE with is_Nil
+HERE with Nil
+HERE with Nil
+HERE with Cons
+HERE with contrived_variable_0
+HERE with contrived_variable_5
+HERE with is_Cons
+HERE with Nil
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.022][0m
+  >>> conv assert (and (= (is_Nil (Nil )) (= (Nil ) (Nil )))
+                   (= (is_Cons (Nil ))
+                    (= (Cons (contrived_variable_0 ) (contrived_variable_5 ))
+                     (Nil ))))
+[34;1m[60|0.022][0m
+  >>> assert clauses [[true;¬(is_Nil Nil)];[(is_Nil Nil);¬true];
+                      [(=
+                        Nil
+                        (Cons contrived_variable_0 contrived_variable_5));
+                       ¬(is_Cons Nil)];
+                      [(is_Cons Nil);
+                       ¬(=
+                          Nil
+                          (Cons contrived_variable_0 contrived_variable_5))]]
+make_selector_constructor_axiomin antoher special case: 
+ const_name: MyList 
+ var: Nil
+ cstor_name: Nilmake_selector_constructor_axiomin antoher special case: 
+ const_name: MyList 
+ var: Nil
+ cstor_name: Cons[34;1m[5|0.022][0m >>> conv stmt decl contrived_variable_5 () Real
+checking if adt_ty: contrived_variable_5
+[34;1m[5|0.022][0m (uf.decl contrived_variable_5/24 () ℚ)
+ variable: Head 5[34;1m[5|0.022][0m >>> conv stmt decl contrived_variable_5 () MyList
+this is the id of contrived_variable_5: 1
+added adt variable to context contrived_variable_5
+checking if adt_ty: contrived_variable_5
+[34;1m[5|0.022][0m (uf.decl contrived_variable_5/25 () MyList/7)
+ variable: Tail 5in this special case: MyList
+in this special case: MyList
+make_selector_constructor_axiomHERE with contrived_variable_5
+HERE with MyList
+HERE with contrived_variable_5
+HERE with contrived_variable_5
+HERE with Head
+HERE with MyList
+HERE with contrived_variable_5
+HERE with MyList
+HERE with contrived_variable_5
+HERE with contrived_variable_5
+HERE with Tail
+HERE with MyList
+ Old Max_depth: 4
+ New Max_depth: 4
+[34;1m[50|0.022][0m
+  >>> conv assert (and
+                   (= (Head (MyList ))
+                    (=
+                     (MyList (contrived_variable_5 ) (contrived_variable_5 ))
+                     (contrived_variable_5 )))
+                   (= (Tail (MyList ))
+                    (=
+                     (MyList (contrived_variable_5 ) (contrived_variable_5 ))
+                     (contrived_variable_5 ))))
+[31;1merror:[0m variable "MyList" not bound
+

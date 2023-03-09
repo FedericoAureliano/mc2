@@ -1,10 +1,15 @@
 
-(declare-datatypes (( Color 0)) (((red) (green) (blue))))
+(declare-datatypes ((Color 0)) (((red) (green) (blue))))
 (declare-datatypes ((MyList 0)) (((Nil) (Cons (Head Real) (Tail MyList)))))
+
+
 
 (declare-const real_test Real)
 (declare-const bool_test Bool)
-(declare-const rational_test Rational)
+;(declare-const rational_test Rational)
+;(declare-const string_test String)
+;(declare-const bitvec_test BitVec)
+
 
 ;(declare-const list_test List)
 ;(declare-const array_test Array)
@@ -12,7 +17,7 @@
 
 
 
-(declare-const x MyList)
+;(declare-const x MyList)
 
 (assert (= green blue))
 
@@ -26,11 +31,15 @@
 ;(assert (is_Nil Nil))
 ;(assert (is_Cons (Cons 1 Nil)))
 
+(declare-const x MyList)
+(assert (= x (Cons 2 Nil)))
+
 (assert (= 7 (Head (Tail (Cons 1 Nil)))))
-(assert (= (Tail (Cons 2 Nil)) Nil))
+(assert (not (= (Tail x) Nil)))
+(assert (= (Tail (Cons 2 Nil)) (Cons 1 Nil)))
 (assert (= Nil (Tail Nil)))
 (assert (= 7 (Head (Tail (Tail (Cons 1 Nil))))))
-(assert (not (= 7 (Head (Tail (Tail (Tail (Cons 1 Nil))))))))
+;(assert (not (= 7 (Head (Tail (Tail (Cons 1 Nil)))))))
 
 
 (declare-sort silly_sort 0)
@@ -40,6 +49,7 @@
 (declare-sort another_sort 0)
 (declare-const thing_one another_sort)
 (declare-const thing_two another_sort)
+
 
 
 ;(assert (= 1 (Head (Cons 1 Nil))))

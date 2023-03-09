@@ -18,7 +18,7 @@ module Stmt = Mc2_core.Statement
 (* type adt = ((string * level) * (PA.cstor list)) list
 type state_type = {ADT_instances : (adt list)}
 let state : state_type = {ADT_instances = []} *)
-(*end:Amar section  *)
+(*end: Amar section  *)
 
 type 'a or_error = ('a, string) CCResult.t
 
@@ -42,6 +42,15 @@ module IntTbl = Hashtbl.Make(struct
   let hash = Hashtbl.hash
 end)
 
+(* Helper function added by Amar *)
+let rec print_list = function 
+  |[] -> ()
+  | e::l -> print_string e ; print_string " " ; print_list l
+
+(* let rec print_stmts = function 
+  |[] -> ()
+  | e::l -> Stmt.pp e ; print_string " " ; (print_stmts l) *)
+
 module Make(ARG : sig
     val solver : Mc2_core.Solver.t
   end)
@@ -63,25 +72,33 @@ module Make(ARG : sig
       adt_tys: (ID.t * Type.t) IntTbl.t; (* we did an int tbl here so we could index them by their id and not their name *)
       terms: ID.t StrTbl.t;
       sel_terms: ID.t StrTbl.t;
+      constr_terms: ID.t StrTbl.t;
       def_funs: (PA.typed_var list * PA.term) StrTbl.t; (* defined functions *)
       def_consts: term_or_form StrTbl.t; (* defined constants *)
       def_adts: (PA.cstor list) StrTbl.t; (* defined adts *)
-      def_adt_vars: PA.ty StrTbl.t; (* defined all of the variables for ADTS: variable name, constructor: may want to include other information like selector tester, etc *)
+      def_adt_byid: string IntTbl.t; (* same table as def_adts, but now we index by the id of an adt*)
+      adt_constructor: (PA.cstor * string) StrTbl.t; (* defined adt constructors: should point to their respective adts *)
+      def_adt_vars: (int * PA.ty) StrTbl.t; (* defined all of the variables for ADTS: variable name, constructor: may want to include other information like selector tester, etc *)
       mutable loc: Loc.t option; (* current loc *)
       mutable max_depth: int;
+      mutable vars_created: int;
     }
 
     let t : t = {
       terms=StrTbl.create 64;
       sel_terms=StrTbl.create 64;
+      constr_terms = StrTbl.create 64;
       tys=StrTbl.create 64;
       adt_tys=IntTbl.create 64;
       def_funs=StrTbl.create 64;
       def_consts=StrTbl.create 32;
       def_adts = StrTbl.create 64;
+      def_adt_byid = IntTbl.create 64;
+      adt_constructor = StrTbl.create 64;
       def_adt_vars = StrTbl.create 64;
       loc=None;
       max_depth = 0;
+      vars_created = 0;
     }
 
     let loc t = t.loc
@@ -98,6 +115,11 @@ module Make(ARG : sig
       StrTbl.replace t.sel_terms s id;
       (* Printf.printf "Keys: %s\n" (String.concat " " (StrTbl.keys_list def_selectors )); *)
       ()
+    
+    let add_term_constr_ (s:string) (id:ID.t) : unit =
+      print_string (s ^ " added to context as constructor \n");
+      StrTbl.replace t.constr_terms s id;
+      ()
 
     let add_ty_ (s:string) (id:ID.t) (ty:Ty.t) : unit =
       StrTbl.replace t.tys s (id,ty);
@@ -110,11 +132,18 @@ module Make(ARG : sig
     let add_def_const s rhs : unit = StrTbl.add t.def_consts s rhs
     let add_def_fun s vars rhs : unit = StrTbl.add t.def_funs s (vars,rhs)
     let add_def_adt name constructors : unit = StrTbl.add t.def_adts name constructors
-    let add_adt_vars name adt_type : unit = StrTbl.add t.def_adt_vars name adt_type (* adding a new adt variable to the context*)
+    let add_def_adt_byid id name : unit = IntTbl.add t.def_adt_byid id name
+    let add_adt_constructor name adt constructor : unit = StrTbl.add t.adt_constructor name (constructor, adt)
+    let add_adt_vars name adt_type id : unit = StrTbl.add t.def_adt_vars name (id, adt_type) (* adding a new adt variable to the context*)
+    let print_adt_vars (): unit = 
+      print_list (StrTbl.keys_list t.def_adt_vars)
     let update_max_depth n : unit = 
-        print_string (" Old Max_depth: " ^ (string_of_int t.max_depth) ^ "\n");
-        t.max_depth <- max t.max_depth n;
-        print_string (" New Max_depth: " ^ (string_of_int t.max_depth) ^ "\n")
+        t.max_depth <- max t.max_depth n
+    let increment_vars_created () : unit = 
+      t.vars_created <- t.vars_created + 1
+
+    let check_def_adt name : PA.cstor list option = StrTbl.find_opt t.def_adts name
+
 
 
     let find_ty (s:string) : ty =
@@ -134,6 +163,11 @@ module Make(ARG : sig
 
     let find_term_sel (s:string) : ID.t option =
       match StrTbl.get t.sel_terms s with
+      | Some f -> Some f
+      | _ -> None
+
+    let find_term_constr (s:string) : ID.t option =
+      match StrTbl.get t.constr_terms s with
       | Some f -> Some f
       | _ -> None
   end
@@ -192,14 +226,7 @@ module Make(ARG : sig
     let n = ref 0 in
     fun () -> ID.makef "lra_%d" (CCRef.incr_then_get n)
 
-  (* Helper function added by Amar *)
-  let rec print_list = function 
-    |[] -> ()
-    | e::l -> print_string e ; print_string " " ; print_list l
 
-  (* let rec print_stmts = function 
-    |[] -> ()
-    | e::l -> Stmt.pp e ; print_string " " ; (print_stmts l) *)
 
   let[@inline] ret_t t = T t
   let[@inline] ret_f f = F f
@@ -564,8 +591,8 @@ module Make(ARG : sig
     conv_statement_aux s
   
   and conv_statement_aux_sel (stmt:PA.statement) : Stmt.t list =
-  match PA.view stmt with
-  | PA.Stmt_decl fr ->
+  begin match PA.view stmt with
+    | PA.Stmt_decl fr ->
       Log.debugf 5 (fun k->k ">>> conv stmt decl %a" (PA.pp_fun_decl PA.pp_ty) fr);
       let f, args, ret = conv_fun_decl fr in
       let id = ID.make f in
@@ -573,6 +600,33 @@ module Make(ARG : sig
       Ctx.add_term_sel_ f id;
       [Stmt.Stmt_decl (id, args,ret)]
     | _ -> errorf_ctx "non-selector inputted as selector"
+    end
+
+    and conv_statement_aux_constr (stmt:PA.statement) : Stmt.t list =
+      begin match PA.view stmt with
+        | PA.Stmt_decl fr ->
+          Log.debugf 5 (fun k->k ">>> conv stmt decl %a" (PA.pp_fun_decl PA.pp_ty) fr);
+          let f, args, ret = conv_fun_decl fr in
+          let id = ID.make f in
+          decl id args ret;
+          Ctx.add_term_constr_ f id;
+          begin match fr.PA.fun_ret with
+            | PA.Ty_app (f, []) -> 
+                  begin match ret with 
+                    |Bool -> () (*TODO: throw an erro if it is a bool*)
+                    |Ty { id; view; _} -> 
+                      (* print_string ("this is the id of " ^ fr.fun_name ^ ": "); print_int id; print_string "\n"; *)
+                      if ((Ctx.in_adt_ty id) && (args == [])) then print_string ("added adt variable to context " ^ fr.fun_name ^ "\n"); 
+                      if ((Ctx.in_adt_ty id) && (args == [])) then Ctx.add_adt_vars fr.fun_name fr.fun_ret id
+                      (* what I need in adt_vars: the constructors <-> selectors <-> testers given in corrspondence. this should probably be added when we define the adt*)
+                  end
+            |_ ->()
+          end;
+          print_string ("happens" ^ f ^ "\n");
+          Ctx.add_term_fun_ f id;
+          [Stmt.Stmt_decl (id, args,ret)]
+        | _ -> errorf_ctx "non-constructor inputted as constructor"
+      end
 
     and conv_statement_aux_adt (stmt:PA.statement) : Stmt.t list =
     match PA.view stmt with
@@ -584,14 +638,16 @@ module Make(ARG : sig
       (* declare type, and save it *)
       SReg.find_exn reg Mc2_unin_sort.k_decl_sort id_thing n;
       let ty = SReg.find_exn reg Mc2_unin_sort.k_make id_thing [] in
+      (* print_string ("ADDED TO CONTEXT : " ^ s ^ "\n"); *)
       Ctx.add_ty_ s id_thing ty;
       begin match ty with 
         |Bool -> ()
-        |Ty { id; _ } -> print_string ("adding adt_ty: " ^ s ^ " and this is the real id(hopefully): "); print_int id; print_string "\n";
+        |Ty { id; _ } -> (*print_string ("adding adt_ty: " ^ s ^ " and this is the real id(hopefully): "); print_int id; print_string "\n";*)
+                         Ctx.add_def_adt_byid id s;
                          Ctx.add_adt_ty_ id id_thing ty; (* Saving the fact that this is an adt type in addition to just a regular type*)
 
       end;
-      print_string ("adding adt_ty: " ^ s ^ " and this is the id: "); print_int ((ID.id) id_thing); print_string "\n";
+      (* print_string ("adding adt_ty: " ^ s ^ " and this is the id: "); print_int ((ID.id) id_thing); print_string "\n"; *)
       [Stmt.Stmt_ty_decl (id_thing, n)]
 
       | _ -> errorf_ctx "non-adt sort inputted as adt"
@@ -661,15 +717,23 @@ module Make(ARG : sig
 
       (* phase 3: this doesn't work right now but should check if our sort is in the adt thing and then add vars if so*)
 
+      (* module Unin = Mc2_unin_sort; *)
 
-      begin match ret with 
-        |Bool -> ()
-        |Ty { id; _ } -> print_string ("this is the id of " ^ fr.fun_name ^ ": "); print_int id; print_string "\n";
-                         if ((Ctx.in_adt_ty id) && (args == [])) then print_string ("added adt variable to context " ^ fr.fun_name ^ "\n"); 
-                         if ((Ctx.in_adt_ty id) && (args == []))  then Ctx.add_adt_vars fr.fun_name fr.fun_ret;
+      (*ISSUE: need this Unin thing to work*)
+      begin match fr.PA.fun_ret with
+        | PA.Ty_app (f, []) -> 
+              begin match ret with 
+                |Bool -> () (*TODO: throw an erro if it is a bool*)
+                |Ty { id; view; _} -> 
+                  (* print_string ("this is the id of " ^ fr.fun_name ^ ": "); print_int id; print_string "\n"; *)
+                  if ((Ctx.in_adt_ty id) && (args == [])) then print_string ("added adt variable to context " ^ fr.fun_name ^ "\n"); 
+                  if ((Ctx.in_adt_ty id) && (args == [])) then Ctx.add_adt_vars fr.fun_name fr.fun_ret id;
+                  (* what I need in adt_vars: the constructors <-> selectors <-> testers given in corrspondence. this should probably be added when we define the adt*)
+              end
+        |_ ->()
       end;
 
-      print_string ("checking if adt_ty: " ^ fr.fun_name ^ "\n");
+      (* print_string ("checking if adt_ty: " ^ fr.fun_name ^ "\n"); *)
 
 
       (* begin match Ctx.find_adt_ty fr.fun_name with 
@@ -718,7 +782,7 @@ module Make(ARG : sig
             (print_list head.cstor_ty_vars); *)
             let adt_type = (PA.Ty_app (s, []): PA.ty) (* not sure if this is the right type but it seems correct-ish*)
               in
-            let constructor = (conv_statement_aux({ loc = stmt.loc; 
+            let constructor = (conv_statement_aux_constr({ loc = stmt.loc; (* could change to conv_statement_aux_constr maybe...*)
                                                     stmt = (Stmt_decl ({fun_ty_vars = head.cstor_ty_vars; 
                                                                                         fun_name = head.cstor_name; 
                                                                                         fun_args = List.map (fun (x, y) -> y) head.cstor_args; (* I don't really know what to put for the type here because there seems to be a list of types for each cstor - idk; Just put Ty_Bool for right now*)
@@ -733,7 +797,6 @@ module Make(ARG : sig
             let selectors = (make_selectors head.cstor_name adt_type head.cstor_args 0) (* I don't really know what to put for the type here because there seems to be a list of types for each cstor - idk; Just put Ty_bool for rn*)
                 in
             List.append (List.append (List.append constructor tester) selectors) (make_functions s n body)
-          |_ -> errorf_ctx "incorrect datatype input"
         end
         in
       let rec analyze_ADT (lst : ((string * level) * PA.cstor list) list) =
@@ -747,6 +810,15 @@ module Make(ARG : sig
                 (*this is the current methodology to store all ADT information: might need to change in the future*)
                 (* state.ADT_instances <- state.ADT_instances::((s, n), constructor_list);  *)
                 Ctx.add_def_adt s constructor_list;
+                let rec create_constructors const_list = 
+                  begin match const_list with
+                    |head :: body -> Ctx.add_adt_constructor s head.PA.cstor_name head;
+                                      print_string ("adding the constructor " ^ head.PA.cstor_name ^ " of adt " ^ s ^ " to the context \n");
+                                      (create_constructors body)
+                    |[] -> ()
+                  end 
+                  in
+                (create_constructors constructor_list);
                 let declare_sort = (conv_statement_aux_adt ({ loc = stmt.loc; stmt = (Stmt_decl_sort (s, n)) })) (* need someway to save the sort type we get from here and then use it in make_functions*)
                   in
                 (* print_stmts ({ loc = stmt.loc; stmt = (Stmt_decl_sort (s, n)) }); *)
@@ -754,7 +826,6 @@ module Make(ARG : sig
                   (List.append declare_sort (make_functions s n constructor_list))
                   (analyze_ADT body)
                 (* Stmt.Stmt_data (id, n, constrs) :: analyze_ADT body *)
-          |_ -> errorf_ctx "incorrect datatype input"
         end
           in
               (* state.number_terms<-(state.number_terms+1); (*want to increment the number of variables by 1 *)*)
@@ -795,7 +866,6 @@ module Make(ARG : sig
       let rec helper t = begin match t with 
       | PA.Eq(a, b) -> max (helper a) (helper b)
       | PA.App (f, l) ->
-        Printf.printf "HERE with %s\n" f;
         (* Printf.printf "Keys: %s\n" (String.concat " " (StrTbl.keys_list Ctx.t.Ctx.def_selectors)); *)
         (* TODO: see if it's a selector, not a fun *)
 
@@ -804,21 +874,27 @@ module Make(ARG : sig
           (* let l = List.map (conv_term_ subst) l in *)
           List.fold_left (fun acc x -> acc + helper x) 1 l
         | None -> 
-          (* let id = Ctx.find_term_fun f in
-          let l = List.map (conv_term_ subst) l in *)
-          List.fold_left (fun acc x -> acc + helper x) 0 l
+          (* Phase 5!! will see if it is a constructor: if it is, will need to create a new ADT variable and recurse*)
+          begin match Ctx.find_term_constr f with
+            | Some id -> List.fold_left (fun acc x -> acc + helper x) 0 l
+            | None -> List.fold_left (fun acc x -> acc + helper x) 0 l
+          end
         end
+
+      (*just added the below 5 lines, but it does not make sense that it would not be there*)
+      (*can write necessary stuff here tmrw: I think it'll be ok*)
+      in 
+      let cs = conv_bool_term t in
+      Log.debugf 60 (fun k->k ">>> assert clauses %a" Fmt.(Dump.(list @@ list @@ Atom.pp)) cs);
+      [Stmt.Stmt_assert_clauses cs]
 
       (* TODO: instead of just 0 handle all the other cases *)
       | PA.Const v -> 0
-      | PA.App ("xor", [a;b]) -> max (helper a) (helper b)
-      | PA.App (f, []) -> 0
       | PA.If (a,b,c) -> max (helper a) (max (helper b) (helper c))
       | PA.Let (bs,body) -> (List.fold_left (fun acc (a, b) -> acc + helper b) 0 bs) + (helper body)
       | PA.And l -> List.fold_left (fun acc x -> acc + helper x) 0 l
       | PA.Or l -> List.fold_left (fun acc x -> acc + helper x) 0 l
       | PA.Imply (a,b) -> max (helper a) (helper b)
-      | PA.Eq (a,b) -> max (helper a) (helper b)
       | PA.Distinct l -> List.fold_left (fun acc x -> acc + helper x) 0 l
       | PA.Not f -> helper f
       | PA.True -> 0
@@ -835,7 +911,6 @@ module Make(ARG : sig
         errorf_ctx "cannot handle is-a" (* TODO *)
       | PA.Forall _ | PA.Exists _ ->
         errorf_ctx "cannot handle quantifiers" (* TODO *)
-      | _ -> 0
       end in
 
       Ctx.update_max_depth (helper t);
@@ -848,7 +923,7 @@ module Make(ARG : sig
 
       [Stmt.Stmt_assert_clauses cs]
     | PA.Stmt_check_sat -> 
-      (*TODO: Phase 3: Need to use the calculated depth of the function to generate all of the 
+      (*TODO: Phase 4: Need to use the calculated depth of the function to generate all of the 
       extra statements about ADTs that we need to assert*)
       (* The statements are of four types: 1. every term must satisfy one tester
                                            2. constructors and testers play nicely with one another
@@ -857,15 +932,233 @@ module Make(ARG : sig
       *)
 
       (* As a starting task, I will try and build the correct assertions about the adts that appear in the query so far,
-      but I will not do anything about their subtrees yet*)
-
-      (Ctx.t.Ctx.def_funs); (* this should be a map of all of the functions*)
-
-      (StrTbl.find Ctx.t.Ctx.def_adts); (* this should be a map of all of the adts 
-                                            -> I think I need something extra, i.e. a hashmap of ADT variables that are declared*)
-
+      but I will not do anything about their subtrees yet: can get all of the ADT variables using (StrTbl.map_list t.def_adt_vars) *)
       
-      [Stmt.Stmt_check_sat]
+      print_string "in check_sat \n";
+      Ctx.print_adt_vars ();
+
+      (* let rec print_constructor_list (constructor_list: PA.cstor list) = 
+        begin match constructor_list with
+          |head :: body -> print_string (head.cstor_name ^ "\n");
+                           (print_constructor_list body)
+          |[] -> ()
+        end
+        in
+
+      let rec check_adt_list adt_list =
+        begin match adt_list with
+          |head :: body -> let var_const_id, var_ty = ((StrTbl.find Ctx.t.Ctx.def_adt_vars) head) in
+                           let constructor_name = ((IntTbl.find Ctx.t.Ctx.def_adt_byid) var_const_id) in
+                           let constructor_list = ((StrTbl.find Ctx.t.Ctx.def_adts) constructor_name) in
+                          (print_constructor_list constructor_list);
+                          (check_adt_list body)
+          |[] -> ()
+        end
+
+        in 
+      (check_adt_list (StrTbl.keys_list Ctx.t.Ctx.def_adt_vars));  *)
+      let rec make_negative_constructor_axioms (current_cstor: PA.cstor) (constructor_full_list: PA.cstor list) (var: string) = 
+        begin match constructor_full_list with
+          |head::body ->
+
+            if (current_cstor.cstor_name == head.cstor_name)
+            then (make_negative_constructor_axioms current_cstor body var)
+            else (List.append [PA.Not (PA.App (("is_" ^ head.cstor_name), [PA.App (var, [])]))] (make_negative_constructor_axioms current_cstor body var))
+          |[] -> []
+        end 
+      in
+      let rec make_tester_axiom (constructor_list: PA.cstor list) (constructor_full_list: PA.cstor list) (var: string) = 
+        begin match constructor_list with 
+          |head :: body -> 
+              (List.append [(PA.And (List.append [PA.App (("is_" ^ head.cstor_name), [PA.App (var, [])])] (make_negative_constructor_axioms head constructor_full_list var)))]
+                (make_tester_axiom body constructor_full_list var))
+          |[] -> []
+        end 
+      in
+
+      let rec make_vars_for_constructor cstor_args = 
+        begin match cstor_args with 
+          | (name, ty):: body ->
+              let new_var_name = "contrived_variable_" ^ (string_of_int Ctx.t.vars_created) in
+              let new_var = (conv_statement_aux({ loc = stmt.loc; 
+                                                  stmt = (Stmt_decl ({fun_ty_vars = []; 
+                                                                        fun_name = new_var_name; 
+                                                                        fun_args = []; 
+                                                                          fun_ret =  ty})) })) 
+              in 
+              (* print_string (" variable: " ^ name ^ " " ^ new_var_name ^"\n"); *)
+              let new_var_term = PA.App (new_var_name, []) in
+              Ctx.increment_vars_created ();
+              let rest_var_terms, rest_stmts = (make_vars_for_constructor body) in
+              (List.append [new_var_term] rest_var_terms), (List.append new_var rest_stmts)
+          |[] -> [], []
+        end
+    
+      in
+
+      let rec make_tester_constructor_axiom (constructor_list: PA.cstor list) (var: string) (const_name: string) =
+        let var_term = PA.App (var, []) in
+        begin match constructor_list with 
+          | {cstor_ty_vars; cstor_name; cstor_args} :: body ->
+              print_string ("in here: " ^ cstor_name ^ "\n"); 
+              let contrived_vars, contrived_var_stmts = (make_vars_for_constructor cstor_args) in
+              let rest_asserts, rest_stmts = (make_tester_constructor_axiom body var const_name) in
+              let return_term = (PA.Eq (PA.App ("is_" ^ cstor_name, [var_term]), (PA.Eq ((PA.App (cstor_name, contrived_vars)), var_term)))) in 
+              Log.debugf 1 (fun k->k ">>> printing the query we make %a" PA.pp_term return_term);
+              ((List.append [return_term] rest_asserts), (List.append contrived_var_stmts rest_stmts))
+          |[] -> [], []
+      end 
+      in
+
+      let rec make_sel_const_ax_helper contrived_variables_before contrived_variables_next constructor_name cstor_args var = 
+        let var_term = PA.App (var, []) in
+        begin match contrived_variables_next with          
+          |head::body -> 
+            begin match cstor_args with
+             |(selector_name, ty)::body2 ->
+                (* print_string ("in this special case: " ^ constructor_name ^ "\n"); *)
+                (List.append [(PA.Eq (PA.Eq (PA.App (selector_name, [var_term]), head), (PA.Eq ((PA.App (constructor_name, (List.append contrived_variables_before contrived_variables_next))), var_term))))]
+                            (make_sel_const_ax_helper (List.append contrived_variables_before [head]) body constructor_name body2 var))
+             |[] -> []
+            end
+          |[] -> []
+        end
+        in
+
+      let rec make_selector_constructor_axiom (constructor_list: PA.cstor list) (var: string) (const_name: string) = 
+        begin match constructor_list with 
+          |{cstor_ty_vars; cstor_name; cstor_args} :: body -> 
+            (* print_string ("in antoher special case: \n const_name: " ^ const_name ^ " \n var: " ^ var ^ "\n cstor_name: " ^ cstor_name); *)
+            let contrived_vars, contrived_var_stmts = (make_vars_for_constructor cstor_args) in
+            let contrived_var_axioms = (make_sel_const_ax_helper [] contrived_vars cstor_name cstor_args var) in
+            let rest_axioms, rest_stmts = (make_selector_constructor_axiom body var const_name) in
+            (List.append contrived_var_axioms rest_axioms), (List.append contrived_var_stmts rest_stmts)
+          |[] -> [], []
+      end 
+      in
+
+      let rec make_no_cycles_inner_loop var1 variable_list = 
+        begin match variable_list with
+          |var2 :: body ->
+            conv_statement_aux({ loc = stmt.loc; 
+                                stmt = (Stmt_assert (PA.Not (PA.Eq ((PA.Const var1), (PA.Const var2)))))})
+          |[] -> []
+        end
+        in
+      
+      let rec make_no_cycles_axiom variable_list = 
+        begin match variable_list with
+          |var :: body -> (List.append (make_no_cycles_inner_loop var body) (make_no_cycles_axiom body))
+          |[] -> []
+        end
+        
+        in
+      
+      let rec build_variable_assertions (var_name) = 
+        (* print_string ("this is the var " ^ var_name ^ "\n"); *)
+        let var_const_id, var_ty = ((StrTbl.find Ctx.t.Ctx.def_adt_vars) var_name) in
+        let constructor_name = ((IntTbl.find Ctx.t.Ctx.def_adt_byid) var_const_id) in
+        let constructor_list = ((StrTbl.find Ctx.t.Ctx.def_adts) constructor_name) in (*TODO: see if there are helper functions to get constructors/selectors*)
+        let axiom_one = conv_statement_aux({ loc = stmt.loc; (**Adding Axiom 1: every term must satisfy one tester*)  
+                                              stmt = (Stmt_assert (PA.Or (make_tester_axiom constructor_list constructor_list var_name)))}) in       
+        let axiom_two_asserts, axiom_two_stmts = (make_tester_constructor_axiom constructor_list var_name constructor_name) in
+        let axiom_two = conv_statement_aux({ loc = stmt.loc; (* Adding Axiom 2: constructors and testers play nicely with one another*)
+                                                stmt = (Stmt_assert (PA.And axiom_two_asserts))}) in
+        let axiom_three, axiom_three_stmts = (make_selector_constructor_axiom constructor_list var_name constructor_name) in
+        let axiom_three = conv_statement_aux({ loc = stmt.loc; (* Adding Axiom 3: constructors and selectors play nicely with one another*)
+                                                stmt = (Stmt_assert (PA.And axiom_three))}) in
+        (List.append (List.append (List.append axiom_one axiom_two) axiom_three) (List.append axiom_two_stmts axiom_three_stmts))
+      in
+      
+      (*takes a list of selectors and a variable, and creates new variables that are equal to the variable*)
+      (* returns a list of variables and a list of asserts about those variables*)
+      let rec get_variables var_name selectors : (string list) * (statement list) = 
+        begin match selectors with 
+          | (selector, ty) :: body -> 
+              begin match Ctx.check_def_adt selector with
+                | Some (something) ->
+                  let rest_vars, rest_asserts = (get_variables var_name body)
+                    in
+                  let new_var = (conv_statement_aux({ loc = stmt.loc; 
+                                                      stmt = (Stmt_decl ({fun_ty_vars = []; 
+                                                      fun_name = ("contrived_variable_" ^ (string_of_int Ctx.t.vars_created)); 
+                                                      fun_args = []; 
+                                                      fun_ret =  ty})) })) 
+                    in 
+                    (* print_string (" variable: " ^ var_name ^ " " ^ (string_of_int Ctx.t.vars_created)); *)
+                  let new_var_name = "contrived_variable_" ^ (string_of_int Ctx.t.vars_created)
+                    in
+                  Ctx.increment_vars_created ();
+                  (*want to assert that new var = selector(var_name)*)
+                  let new_assertion = conv_statement_aux({ loc = stmt.loc; (* adding the fact that we can get this new variable from a selector application to var_name*)
+                                                          stmt = (Stmt_assert (PA.Eq ((PA.App (selector, [(PA.Const var_name)])), (PA.Const new_var_name))))})
+                    in
+                  (List.append [new_var_name] rest_vars), (List.append new_var (List.append new_assertion rest_asserts))
+                  (* note that we are actually appending new_var to the asserts since this is essentially an smt assert*)
+                |None -> ([], [])
+               end
+          | [] -> ([], [])
+        end
+        in
+      
+      let rec build_new_assertions new_variables n : (string list) * (statement list) = (*TODO: write this*)
+        begin match new_variables with
+          | var :: body ->
+              let rest_vars, rest_asserts = build_new_assertions body n in
+              let new_var, new_assertion = get_constructor_list var (n - 1) in
+              ((List.append new_var rest_vars), (List.append new_assertion rest_asserts))
+          |[] -> [], []
+        end
+      
+
+      and build_assertions_with_depth_helper (var_name : string) (constr : PA.cstor) (n : int) : (string list) * (statement list) = 
+        (* print_string ("var_name: " ^ var_name ^ " n: " ^ (string_of_int n)); *)
+        (* if (n = 0) then print_string "reached bottom of recursion"; *)
+        if (n <= 0)
+        then ([], [])
+        else 
+          let first_three_axioms = (build_variable_assertions var_name) in
+          let new_variables, new_variable_assertions = get_variables var_name constr.PA.cstor_args in
+          let more_variables, more_assertions = build_new_assertions new_variables n in
+          ((List.append new_variables more_variables), (List.append first_three_axioms (List.append more_assertions new_variable_assertions) ))
+
+      and build_assertions_with_depth (var_name : string) (n: int) constructor_list : (string list) * (statement list) = 
+        (*Another issue that we never even thougth about: we just know the adt_type of the variable, not the constructor type, we then have to consider all selectors applied to it: this is kinda bad*)
+        begin match constructor_list with 
+          |constr :: body -> 
+              let rest_vars, rest_assertions = (build_assertions_with_depth var_name n body) in
+              let new_var, new_assertion = (build_assertions_with_depth_helper var_name constr n) in
+              ((List.append new_var rest_vars), (List.append new_assertion rest_assertions))
+        (*|var_name :: body -> List.append (build_variable_assertions var_name) (build_assertions body n)
+                            (**ISSUE: not really an issue, I will just do this tmrw. Could discuss with Federico
+                                      The idea is to build_variable_assertions for each element in adt_list as we do now,
+                                      but also do recursive calls where we take all the subterms of var_name up to a depth n and then
+                                      call build_variable_assertions on them and make sure everything is not = to their subterms  *)*)
+
+          |[] -> ([], [])
+      end
+      
+      and get_constructor_list (var_name : string) (n: int) = 
+        print_string ("this is the var " ^ var_name ^ "\n");
+        let var_const_id, var_ty = ((StrTbl.find Ctx.t.Ctx.def_adt_vars) var_name) in
+        let adt_name = ((IntTbl.find Ctx.t.Ctx.def_adt_byid) var_const_id) in
+        let constructor_list = ((StrTbl.find Ctx.t.Ctx.def_adts) adt_name) in 
+        (build_assertions_with_depth var_name n constructor_list)
+
+      in
+
+      let rec build_assertions (adt_list : string list) (n : int) : statement list = 
+        begin match adt_list with 
+          |var_name :: body -> 
+            let variables, assertions = (get_constructor_list var_name n) in
+            (List.append (make_no_cycles_axiom variables) (List.append assertions (build_assertions body n)))
+          |[] -> []
+        end
+        in
+
+      (* let test_if_works = conv_statement_aux({ loc = stmt.loc; stmt = (Stmt_assert (PA.False))}) in *)
+        
+      List.append (build_assertions (StrTbl.keys_list Ctx.t.Ctx.def_adt_vars) (Ctx.t.max_depth + 1)) [Stmt.Stmt_check_sat]
     | PA.Stmt_check_sat_assuming _
     | PA.Stmt_get_assertions
     | PA.Stmt_get_option _
