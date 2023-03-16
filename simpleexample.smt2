@@ -1,4 +1,3 @@
-
 (declare-datatypes ((Color 0)) (((red) (green) (blue))))
 (declare-datatypes ((MyList 0)) (((Nil) (Cons (Head Real) (Tail MyList)))))
 
@@ -19,6 +18,8 @@
 
 ;(declare-const x MyList)
 
+
+
 (assert (= green blue))
 
 ;(assert (is_green green))
@@ -32,14 +33,32 @@
 ;(assert (is_Cons (Cons 1 Nil)))
 
 (declare-const x MyList)
-(assert (= x (Cons 2 Nil)))
+(declare-const y MyList)
+(declare-const z MyList)
+
+;(assert (= x (Tail y)))
+;(assert (= y (Tail z)))
+;(assert (= z (Tail x))) ; ;(* these three together should give unsat, but currently don;'t*)
+
+
 
 (assert (= 7 (Head (Tail (Cons 1 Nil)))))
-(assert (not (= (Tail x) Nil)))
-(assert (= (Tail (Cons 2 Nil)) (Cons 1 Nil)))
-(assert (= Nil (Tail Nil)))
-(assert (= 7 (Head (Tail (Tail (Cons 1 Nil))))))
+(assert (= 8 (Head (Cons 7 Nil)))) ;(* this should give unsat, but currently doesn't*)
+;(assert (= (Cons 7 Nil) (Cons 8 (Cons 7 Nil)))) ;(* this should give unsat, but currently doesn't*)
+;(assert (is_Cons (Cons 7 Nil)))
+;(assert (is_Nil Nil))
+
+;(declare-const l MyList)
+;(assert (= l (Cons 7 Nil)))
+
+;(assert (is_Nil l))
+
+;(assert (not (= (Tail x) Nil)))
+;(assert (= (Tail (Cons 2 Nil)) (Cons 1 Nil)))
+;(assert (= Nil (Tail Nil)))
+;(assert (= 7 (Head (Tail (Tail (Cons 1 Nil))))))
 ;(assert (not (= 7 (Head (Tail (Tail (Cons 1 Nil)))))))
+
 
 
 (declare-sort silly_sort 0)
